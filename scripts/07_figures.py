@@ -63,35 +63,47 @@ for (x, yy), s in [(PF, "familiarity\nprediction"), (BQ, "note\ndifficulty"), (A
     ax.text(6.75, yy, s, fontsize=8.5, va="center", ha="left")
 save(fig, "fig1_model")
 
-# ---------------- Fig. 2: accuracy against size, and by practice gap ----------------
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False,
-                     "axes.edgecolor": GRAY, "axes.grid": True, "grid.color": "#e4e3df", "grid.linewidth": 0.6, "axes.axisbelow": True})
+# ---------------- Fig. 2: accuracy and model size, and accuracy by practice gap ----------------
+plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8.5, "axes.spines.top": False, "axes.spines.right": False,
+                     "axes.edgecolor": "#8a8984", "axes.linewidth": 0.8, "xtick.color": "#52514e", "ytick.color": "#52514e",
+                     "axes.grid": True, "grid.color": "#e4e3df", "grid.linewidth": 0.6, "axes.axisbelow": True})
 M = json.load(open(common.path(a, "results", "metrics.json")))
-fig, (pa, pb) = plt.subplots(1, 2, figsize=(7.4, 2.9), gridspec_kw={"width_ratios": [1.1, 0.8]})
-spec = [("BKT", "i", (6, -3)), ("PFA", "i", (-6, 2)), ("BKT-Forget", "i", (6, 0)), ("LR", "i", (5, -12)), ("SAKT", "d", (7, -3)),
-        ("AKT", "d", (7, -9)), ("simpleKT", "d", (7, 2)), ("DKT", "d", (-7, 5)), ("DSFT", "o", (-6, 8))]
-names = {"LR": "Logistic regression", "DSFT": "DSFT (ours)"}
-for m, k, (dx, dy) in spec:
-    mk, c, s = {"i": ("o", GRAY, 26), "d": ("s", GRAY, 24), "o": ("*", BLUE, 110)}[k]
-    x, v, sd = M[m]["params"], M[m]["auc"], M[m]["sd"]
-    pa.errorbar(x, v, yerr=sd, fmt="none", ecolor=c, elinewidth=0.9, capsize=2, zorder=2)
-    pa.scatter(x, v, marker=mk, s=s, color=c, edgecolor="white", linewidth=0.7, zorder=3)
-    pa.annotate(names.get(m, m), (x, v), xytext=(dx, dy), textcoords="offset points", ha="left" if dx > 0 else "right",
-                fontsize=7.3, color=BLUE if k == "o" else INK, fontweight="bold" if k == "o" else "normal")
-pa.set_xscale("log"); pa.set_xlim(220, 1.6e6); pa.set_ylim(0.665, 0.865)
-pa.set_xlabel("Number of free parameters (log scale)"); pa.set_ylabel("AUC (five-fold mean ± SD)")
-pa.scatter([], [], marker="o", color=GRAY, s=20, label="Interpretable"); pa.scatter([], [], marker="s", color=GRAY, s=18, label="Deep")
-pa.legend(loc="lower right", frameon=False, fontsize=7); pa.set_title("(a) Accuracy against model size", fontsize=8.5, loc="left")
+MUTED = "#52514e"
+# one colour per model, shared by both panels (categorical slots 1-6, validated for colour-vision deficiency)
+COL = {"DSFT": "#2a78d6", "DKT": "#eb6834", "simpleKT": "#1baf7a", "AKT": "#eda100", "LR": "#e87ba4", "SAKT": "#008300"}
+LABEL = {"DSFT": "DSFT (ours)", "DKT": "DKT (tuned)", "SAKT": "SAKT (tuned)", "LR": "Logistic regression"}
+fig, (pa, pb) = plt.subplots(1, 2, figsize=(6.6, 3.3), gridspec_kw={"width_ratios": [1.0, 1.0]})
+order = sorted(["BKT", "PFA", "BKT-Forget", "SAKT", "AKT", "LR", "simpleKT", "DKT", "DSFT"], key=lambda m: M[m]["auc"])
+fmt = lambda p: f"{p / 1000:.1f}K" if p < 10000 else f"{p / 1000:.0f}K"
+for i, m in enumerate(order):
+    ours, c = m == "DSFT", COL.get(m, "#c9c8c2")
+    v, sd = M[m]["auc"], M[m]["sd"]
+    pa.barh(i, v - 0.5, left=0.5, height=0.62, color=c, zorder=2)
+    pa.errorbar(v, i, xerr=sd, fmt="none", ecolor=INK, elinewidth=0.8, capsize=1.8, zorder=3)
+    r, g, bb = (int(c[k:k + 2], 16) / 255 for k in (1, 3, 5))
+    pa.text(v - sd - 0.006, i, f"{v:.3f}", va="center", ha="right", fontsize=6.8, zorder=4, fontweight="bold" if ours else "normal",
+            color=INK if 0.2126 * r + 0.7152 * g + 0.0722 * bb > 0.45 else "white")
+    pa.text(1.03, i, fmt(M[m]["params"]), transform=pa.get_yaxis_transform(), va="center", ha="left", fontsize=7.2,
+            color=INK if ours else MUTED, fontweight="bold" if ours else "normal")
+pa.text(1.03, len(order) - 0.25, "Params", transform=pa.get_yaxis_transform(), va="bottom", ha="left", fontsize=7.2, color=MUTED)
+pa.set_yticks(range(len(order))); pa.set_yticklabels([LABEL.get(m, m) for m in order])
+for tk, m in zip(pa.get_yticklabels(), order):
+    if m == "DSFT": tk.set_color(COL["DSFT"]); tk.set_fontweight("bold")
+pa.set_xlim(0.5, 0.88); pa.set_xticks([0.5, 0.6, 0.7, 0.8]); pa.set_ylim(-0.6, len(order) - 0.2)
+pa.grid(axis="y", visible=False); pa.spines["left"].set_visible(False); pa.tick_params(axis="y", length=0)
+pa.set_box_aspect(1); pa.set_xlabel("AUC (five-fold mean ± SD; 0.5 = chance)")
+pa.set_title("(a) Accuracy and model size", fontsize=8.5, loc="left", color=INK)
 xs = np.arange(3)
-for m, mk in [("DKT", "s"), ("simpleKT", "D"), ("AKT", "^"), ("LR", "v"), ("SAKT", "o")]:
-    pb.plot(xs, [M[m]["auc"], M[m]["auc_gap1"], M[m]["auc_gap7"]], color=GRAY, lw=1, marker=mk, ms=3.8, label={"DKT": "DKT (tuned)", "SAKT": "SAKT (tuned)"}.get(m, names.get(m, m)))
-pb.plot(xs, [M["DSFT"]["auc"], M["DSFT"]["auc_gap1"], M["DSFT"]["auc_gap7"]], color=BLUE, lw=2, marker="*", ms=8, label="DSFT (ours)", zorder=3)
-h, l = pb.get_legend_handles_labels(); o = [l.index("DSFT (ours)")] + [i for i in range(len(l)) if l[i] != "DSFT (ours)"]
-pb.legend([h[i] for i in o], [l[i] for i in o], loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=7, handlelength=2.2)
-pb.set_xticks(xs); pb.set_xticklabels(["All\nattempts", "Gap >\n1 day", "Gap >\n7 days"]); pb.set_xlim(-0.25, 2.25)
-pb.set_ylabel("AUC (five-fold mean)"); pb.grid(axis="x", visible=False)
-pb.set_title("(b) Accuracy by gap since the last attempt", fontsize=8.5, loc="left")
-fig.tight_layout(w_pad=3); save(fig, "fig2_accuracy")
+for m in ["SAKT", "LR", "AKT", "simpleKT", "DKT", "DSFT"]:
+    pb.plot(xs, [M[m]["auc"], M[m]["auc_gap1"], M[m]["auc_gap7"]], color=COL[m], lw=2.4 if m == "DSFT" else 1.5,
+            zorder=3 if m == "DSFT" else 2, label=LABEL.get(m, m), solid_capstyle="round")
+h, l = pb.get_legend_handles_labels()
+pb.legend(h[::-1], l[::-1], loc="upper center", bbox_to_anchor=(0.5, -0.24), ncol=3, frameon=False, fontsize=7.2,
+          handlelength=1.8, columnspacing=1.4, labelspacing=0.35)
+pb.set_xticks(xs); pb.set_xticklabels(["All attempts", "> 1 day", "> 7 days"]); pb.set_xlim(-0.3, 2.3)
+pb.set_box_aspect(1); pb.set_ylabel("AUC (five-fold mean)"); pb.set_xlabel("Gap since the last attempt on the concept")
+pb.grid(axis="x", visible=False); pb.set_title("(b) Accuracy by gap since the last attempt", fontsize=8.5, loc="left", color=INK)
+fig.tight_layout(w_pad=3.5); save(fig, "fig2_accuracy")
 
 # ---------------- Fig. 3: error runs within a take ----------------
 z = data.load(a.data, a.quick)

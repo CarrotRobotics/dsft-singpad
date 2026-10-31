@@ -36,6 +36,7 @@ Run the steps in order from the repository root. Each step writes to `outputs/` 
 | 6 | `python scripts/06_analyses.py` | error runs, forgetting after gaps, the three readable take states (`results/analyses.md`) | 2 min |
 | 7 | `python scripts/07_figures.py` | Figs. 1–3 as PDF and PNG (`figures/`) | 1 min |
 | 8 | `python scripts/08_small_data.py` | optional: training on 17 and 43 learners (Section 5.3) | 1–2 h |
+| 9 | `python scripts/09_seeds.py` | optional: DSFT, DKT and simpleKT with two further seeds (Section 5.1, `results/seeds.md`) | 1–1.5 h |
 
 `bash run_all.sh` runs steps 1–7. Add `--quick` to any step (or `bash run_all.sh --quick`) to check that the
 pipeline runs end to end on 150 learners with very short training; its numbers are not meaningful.
@@ -61,6 +62,16 @@ Folds, validation splits and seeds are fixed in the code, so a full run should r
 Small differences (around ±0.001 AUC) can come from library versions and floating-point order, mainly for the deep models.
 The optional small-data step trains DKT with early stopping, so its DKT numbers can differ slightly from Section 5.3,
 which reports that DKT is sensitive to training settings with so few learners.
+
+### Seed robustness (step 9)
+
+| Model | Seed 0 | Seed 1 | Seed 2 |
+| --- | --- | --- | --- |
+| DSFT | 0.8472 | 0.8470 | 0.8468 |
+| DKT (tuned) | 0.8466 | 0.8467 | 0.8469 |
+| simpleKT | 0.8424 | 0.8424 | 0.8426 |
+
+DSFT and DKT differ by less than 0.001 AUC for every seed; DSFT stays 0.004 to 0.005 AUC above simpleKT for every seed.
 
 ## Code layout
 
